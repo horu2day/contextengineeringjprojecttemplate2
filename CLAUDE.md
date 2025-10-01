@@ -78,8 +78,11 @@ Action: List all files in PRPs/ directory with brief descriptions
 
 ```
 
-smartpdf/
+[ProjectName]/
 ├── .claude/ # Claude Code configuration
+│ ├── agents/ # Sub-agent definitions
+│ │ ├── code-analyst.md # Codebase analysis agent
+│ │ └── web-researcher.md # Web research agent
 │ ├── commands/ # Custom slash commands
 │ │ ├── generate-prp.md # PRP generation workflow
 │ │ └── execute-prp.md # PRP execution workflow
@@ -93,7 +96,6 @@ smartpdf/
 │ ├── pydantic-ai/ # Python AI agents with PydanticAI
 │ └── template-generator/ # Template creation workflows
 ├── INITIAL.md # Template for feature requests
-├── INITIAL_EXAMPLE.md # Example feature request
 └── CLAUDE.md # This file
 
 ````
