@@ -41,6 +41,10 @@ window.addEventListener('DOMContentLoaded', function() {
   setupCoordinatePicking(scene, canvas);
   console.log("✓ Coordinate picking enabled");
 
+  // Setup drag & drop file loading
+  setupFileLoading(scene);
+  console.log("✓ File loading enabled (drag & drop / button)");
+
   // Start the render loop
   engine.runRenderLoop(() => {
     scene.render();
@@ -207,4 +211,201 @@ function showErrorMessage(message) {
   setTimeout(() => {
     errorDiv.remove();
   }, 10000);
+}
+
+// Setup File Loading (Drag & Drop + Button)
+let currentMeshes = []; // Track loaded meshes for cleanup
+
+function setupFileLoading(scene) {
+  const dropZone = document.getElementById('dropZone');
+  const fileInput = document.getElementById('fileInput');
+  const body = document.body;
+
+  // Prevent default drag behaviors
+  ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    body.addEventListener(eventName, preventDefaults, false);
+  });
+
+  function preventDefaults(e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  // Highlight drop zone when item is dragged over
+  ['dragenter', 'dragover'].forEach(eventName => {
+    body.addEventListener(eventName, () => {
+      dropZone.style.display = 'block';
+    }, false);
+  });
+
+  ['dragleave', 'drop'].forEach(eventName => {
+    body.addEventListener(eventName, () => {
+      dropZone.style.display = 'none';
+    }, false);
+  });
+
+  // Handle dropped files
+  body.addEventListener('drop', (e) => {
+    const dt = e.dataTransfer;
+    const files = dt.files;
+    handleFiles(files, scene);
+  }, false);
+
+  // Handle file input button
+  fileInput.addEventListener('change', (e) => {
+    const files = e.target.files;
+    handleFiles(files, scene);
+  }, false);
+}
+
+function handleFiles(files, scene) {
+  if (files.length === 0) return;
+
+  const file = files[0];
+  const fileName = file.name.toLowerCase();
+
+  // Check file extension
+  if (!fileName.endsWith('.splat') && !fileName.endsWith('.ply')) {
+    showErrorMessage('Invalid file format. Please upload .splat or .ply files only.');
+    console.error('Invalid file format:', fileName);
+    return;
+  }
+
+  console.log(`Loading file: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+
+  // Clear previous meshes
+  clearPreviousMeshes();
+
+  // Show loading indicator
+  const loadingElement = document.getElementById('loading');
+  if (loadingElement) {
+    loadingElement.textContent = `Loading ${file.name}...`;
+    loadingElement.style.display = 'block';
+  }
+
+  // Read file as ArrayBuffer and load it
+  const reader = new FileReader();
+
+  reader.onload = function(event) {
+    const arrayBuffer = event.target.result;
+
+    // Convert ArrayBuffer to Blob with correct MIME type
+    const blob = new Blob([arrayBuffer]);
+    const blobUrl = URL.createObjectURL(blob);
+
+    // CRITICAL: Append original filename so Babylon.js can detect file type
+    // Use both methods for maximum compatibility
+    const finalUrl = blobUrl + '#' + file.name;
+
+    // Load using Babylon.js SceneLoader with explicit filename
+    BABYLON.SceneLoader.ImportMesh(
+      null,              // meshesNames (null = load all)
+      blobUrl + '?',     // rootUrl (blob with separator)
+      file.name,         // sceneFilename (original filename with extension)
+      scene,
+      function(meshes) {
+        // Success callback
+        if (meshes && meshes.length > 0) {
+          console.log(`✓ Model loaded successfully: ${file.name}`);
+          console.log(`  Meshes loaded: ${meshes.length}`);
+
+          // Store meshes for later cleanup
+          currentMeshes = meshes;
+
+          const splatMesh = meshes[0];
+
+          // Log bounding box info
+          if (splatMesh.getBoundingInfo) {
+            const boundingBox = splatMesh.getBoundingInfo().boundingBox;
+            const size = boundingBox.maximum.subtract(boundingBox.minimum);
+            console.log(`  Bounding box size: ${size.x.toFixed(2)} x ${size.y.toFixed(2)} x ${size.z.toFixed(2)}`);
+          }
+
+          // Auto-focus camera on the new model
+          if (scene.activeCamera) {
+            scene.activeCamera.setTarget(splatMesh.position);
+          }
+
+          // Show success notification
+          showNotification(`✓ Loaded: ${file.name}`, 3000);
+        } else {
+          console.warn("⚠ Model loaded but no meshes found");
+        }
+
+        // Hide loading indicator
+        if (loadingElement) {
+          loadingElement.style.display = 'none';
+        }
+
+        // Clean up blob URL
+        URL.revokeObjectURL(blobUrl);
+      },
+      function(evt) {
+        // Progress callback
+        if (evt.lengthComputable) {
+          const percent = (evt.loaded / evt.total * 100).toFixed(0);
+          console.log(`Loading: ${percent}%`);
+          if (loadingElement) {
+            loadingElement.textContent = `Loading ${file.name}... ${percent}%`;
+          }
+        }
+      },
+      function(scene, message, exception) {
+        // Error callback
+        console.error("✗ Failed to load model:", message);
+        console.error("Exception:", exception);
+        showErrorMessage(`Failed to load ${file.name}. File may be corrupted or in unsupported format.`);
+
+        if (loadingElement) {
+          loadingElement.style.display = 'none';
+        }
+
+        // Clean up blob URL
+        URL.revokeObjectURL(blobUrl);
+      }
+    );
+  };
+
+  reader.onerror = function() {
+    console.error("✗ Failed to read file");
+    showErrorMessage(`Failed to read ${file.name}. Please try again.`);
+    if (loadingElement) {
+      loadingElement.style.display = 'none';
+    }
+  };
+
+  // Start reading the file
+  reader.readAsArrayBuffer(file);
+}
+
+function clearPreviousMeshes() {
+  if (currentMeshes.length > 0) {
+    console.log(`Removing ${currentMeshes.length} previous mesh(es)`);
+    currentMeshes.forEach(mesh => {
+      mesh.dispose();
+    });
+    currentMeshes = [];
+  }
+}
+
+function showNotification(message, duration = 3000) {
+  const notification = document.createElement("div");
+  notification.style.position = "absolute";
+  notification.style.top = "50%";
+  notification.style.left = "50%";
+  notification.style.transform = "translate(-50%, -50%)";
+  notification.style.background = "rgba(0, 200, 100, 0.9)";
+  notification.style.color = "white";
+  notification.style.padding = "15px 25px";
+  notification.style.borderRadius = "8px";
+  notification.style.fontSize = "16px";
+  notification.style.zIndex = "1000";
+  notification.style.boxShadow = "0 4px 16px rgba(0, 0, 0, 0.5)";
+  notification.textContent = message;
+
+  document.body.appendChild(notification);
+
+  setTimeout(() => {
+    notification.remove();
+  }, duration);
 }

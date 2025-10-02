@@ -8,10 +8,13 @@ A web-based 3D viewer for Gaussian Splatting data (.splat and .ply files) built 
 ## Features
 
 - ✅ Load and render `.splat` and `.ply` Gaussian Splatting files
+- ✅ **Drag & Drop** file loading - just drag .splat or .ply files onto the viewer!
+- ✅ **File Upload Button** - click to browse and load models from your computer
 - ✅ Interactive 3D camera controls (rotate, zoom, pan)
 - ✅ Click to display world coordinates of picked points
 - ✅ Responsive full-viewport canvas
 - ✅ Clean, modern UI with info overlay
+- ✅ Automatic cleanup of previous models when loading new ones
 
 ## Quick Start
 
@@ -43,11 +46,19 @@ The viewer will automatically open in your default browser at `http://localhost:
 
 ### Loading Custom Models
 
+**Method 1: Drag & Drop (Recommended)**
+1. Simply drag any `.splat` or `.ply` file from your computer
+2. Drop it anywhere on the viewer window
+3. The model will automatically load and replace the current one
+
+**Method 2: File Upload Button**
+1. Click the "📁 Load Model" button in the top-right corner
+2. Browse and select a `.splat` or `.ply` file from your computer
+3. The model will load automatically
+
+**Method 3: Place in Assets Folder**
 1. Place your `.splat` or `.ply` file in the `assets/` folder
-2. Update the filename in [src/viewer.js:67](src/viewer.js#L67):
-   ```javascript
-   "train.splat",     // Change this to your filename
-   ```
+2. It will be loaded automatically on startup (edit `src/main-global.js:106` to change default file)
 
 ## Project Structure
 
