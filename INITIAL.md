@@ -8,7 +8,6 @@
 
 아래와 같이 샘플코드를 넣어라.
 [`examples/basic-splat-scene.js` folder]
-[`examples/dwgmain.py` folder]
 
 ## DOCUMENTATION
 

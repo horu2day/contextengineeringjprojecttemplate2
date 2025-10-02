@@ -9,6 +9,8 @@
     <!-- Babylon.js CDN - Global BABYLON object -->
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <!-- CRITICAL: Gaussian Splatting File Loader Plugin (MUST be loaded after babylon.js) -->
+    <script src="https://cdn.babylonjs.com/loaders/babylon.splatFileLoader.js"></script>
 
     <style>
         body {
@@ -73,6 +75,37 @@
         </button>
     </div>
 
+    <!-- Performance Controls -->
+    <div id="performanceControls" style="position: absolute; top: 60px; right: 10px; z-index: 20;
+                                         background: rgba(0, 0, 0, 0.8); padding: 15px;
+                                         border-radius: 8px; color: white; font-size: 13px;
+                                         min-width: 250px; display: none;">
+        <div style="margin-bottom: 12px;">
+            <strong>⚙️ Performance Settings</strong>
+        </div>
+
+        <div style="margin-bottom: 10px;">
+            <label for="maxSplatCount">Max Splats: <span id="maxSplatCountValue">100000</span></label>
+            <input type="range" id="maxSplatCount" min="10000" max="1000000" step="10000" value="100000"
+                   style="width: 100%; margin-top: 5px;">
+        </div>
+
+        <div style="margin-bottom: 10px;">
+            <label for="qualityMode">Quality:</label>
+            <select id="qualityMode" style="width: 100%; padding: 5px; margin-top: 5px; border-radius: 3px;">
+                <option value="0" selected>Low (Fastest)</option>
+                <option value="1">Medium</option>
+                <option value="2">High (Slowest)</option>
+            </select>
+        </div>
+
+        <button id="applySettings" style="width: 100%; padding: 8px; background: rgba(0, 200, 100, 0.9);
+                                           color: white; border: none; border-radius: 5px; cursor: pointer;
+                                           font-size: 13px; margin-top: 5px;">
+            ✓ Apply Settings
+        </button>
+    </div>
+
     <!-- Drag & Drop Overlay -->
     <div id="dropZone" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;
                                background: rgba(0, 120, 255, 0.1); border: 3px dashed rgba(0, 120, 255, 0.5);
@@ -90,7 +123,10 @@
         Scroll: Zoom<br>
         Right Mouse: Pan<br>
         Click: Show Coordinates<br>
-        <span style="color: #4af;">Drag & Drop: Load Model</span>
+        <span style="color: #4af;">Drag & Drop: Load Model</span><br>
+        <div id="fps" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.2);">
+            <strong>FPS:</strong> <span id="fpsValue">--</span>
+        </div>
     </div>
     <div id="coordinates"></div>
     <canvas id="renderCanvas"></canvas>

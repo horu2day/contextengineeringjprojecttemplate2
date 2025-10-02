@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Babylon.js Gaussian Splat Viewer - Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a1a;
+            color: #fff;
+            overflow: hidden;
+        }
+
+        #renderCanvas {
+            width: 100%;
+            height: 100vh;
+            display: block;
+            touch-action: none;
+            outline: none;
+            transition: opacity 0.3s;
+        }
+
+        #renderCanvas.dragover {
+            opacity: 0.5;
+            border: 3px dashed #4CAF50;
+        }
+
+        #controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            min-width: 300px;
+            backdrop-filter: blur(10px);
+            z-index: 100;
+        }
+
+        #controls h2 {
+            margin-bottom: 15px;
+            font-size: 18px;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+            color: #ccc;
+        }
+
+        .control-group input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 5px;
+            color: #fff;
+            font-size: 14px;
+        }
+
+        .control-group input[type="color"] {
+            width: 100%;
+            height: 40px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .control-group input[type="file"] {
+            width: 100%;
+            padding: 8px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 5px;
+            color: #fff;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            background: #4CAF50;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background: #45a049;
+        }
+
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+
+        #loadingUI {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 30px 50px;
+            border-radius: 10px;
+            font-size: 18px;
+            z-index: 1000;
+            display: none;
+            text-align: center;
+        }
+
+        #loadingUI .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4CAF50;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto 0;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #info {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 12px;
+            max-width: 300px;
+        }
+
+        #info h3 {
+            margin-bottom: 10px;
+            font-size: 14px;
+            color: #4CAF50;
+        }
+
+        #info .stat {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+
+        #info .stat-label {
+            color: #ccc;
+        }
+
+        #info .stat-value {
+            color: #fff;
+            font-weight: bold;
+        }
+
+        .dropzone-hint {
+            text-align: center;
+            padding: 20px;
+            background: rgba(76, 175, 80, 0.1);
+            border: 2px dashed #4CAF50;
+            border-radius: 10px;
+            margin-top: 10px;
+            font-size: 13px;
+            color: #4CAF50;
+        }
+
+        .sample-urls {
+            margin-top: 15px;
+        }
+
+        .sample-urls h4 {
+            font-size: 14px;
+            margin-bottom: 10px;
+            color: #ccc;
+        }
+
+        .sample-urls button {
+            margin-top: 5px;
+            font-size: 12px;
+            padding: 8px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="renderCanvas"></canvas>
+
+    <div id="controls">
+        <h2>Gaussian Splat Viewer</h2>
+
+        <div class="control-group">
+            <label for="plyUrl">PLY File URL:</label>
+            <input type="text" id="plyUrl" placeholder="Enter .ply file URL">
+            <button id="loadBtn">Load PLY</button>
+        </div>
+
+        <div class="control-group">
+            <label for="fileInput">Or Upload File:</label>
+            <input type="file" id="fileInput" accept=".ply">
+        </div>
+
+        <div class="dropzone-hint">
+            Or drag & drop a .ply file onto the canvas
+        </div>
+
+        <div class="control-group">
+            <label for="bgColor">Background Color:</label>
+            <input type="color" id="bgColor" value="#000000">
+        </div>
+
+        <div class="sample-urls">
+            <h4>Sample PLY Files:</h4>
+            <button id="sample1">Nerfstudio Example</button>
+            <button id="sample2">Local Test File</button>
+        </div>
+    </div>
+
+    <div id="info">
+        <h3>Scene Info</h3>
+        <div class="stat">
+            <span class="stat-label">FPS:</span>
+            <span class="stat-value" id="fps">0</span>
+        </div>
+        <div class="stat">
+            <span class="stat-label">Vertices:</span>
+            <span class="stat-value" id="vertices">-</span>
+        </div>
+        <div class="stat">
+            <span class="stat-label">Status:</span>
+            <span class="stat-value" id="status">Ready</span>
+        </div>
+    </div>
+
+    <div id="loadingUI">
+        <div>Loading Gaussian Splat...</div>
+        <div class="spinner"></div>
+    </div>
+
+    <!-- Babylon.js -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+
+    <script type="module">
+        /**
+         * Simplified viewer implementation for demo purposes
+         * In production, use the full babylon-splat-loader.js module
+         */
+
+        class SimpleSplatViewer {
+            constructor(canvasId) {
+                this.canvas = document.getElementById(canvasId);
+                this.engine = null;
+                this.scene = null;
+                this.camera = null;
+                this.splatMesh = null;
+                this.fpsElement = document.getElementById('fps');
+                this.verticesElement = document.getElementById('vertices');
+                this.statusElement = document.getElementById('status');
+            }
+
+            async initialize() {
+                // Create engine
+                this.engine = new BABYLON.Engine(this.canvas, true);
+
+                // Create scene
+                this.scene = new BABYLON.Scene(this.engine);
+                this.scene.clearColor = new BABYLON.Color3(0, 0, 0);
+
+                // Setup camera
+                this.camera = new BABYLON.ArcRotateCamera(
+                    "camera",
+                    -Math.PI / 2,
+                    Math.PI / 2.5,
+                    5,
+                    BABYLON.Vector3.Zero(),
+                    this.scene
+                );
+                this.camera.attachControl(this.canvas, true);
+                this.camera.wheelPrecision = 50;
+
+                // Add light
+                new BABYLON.HemisphericLight(
+                    "light",
+                    new BABYLON.Vector3(0, 1, 0),
+                    this.scene
+                );
+
+                // Render loop with FPS counter
+                let lastTime = performance.now();
+                let fps = 0;
+
+                this.engine.runRenderLoop(() => {
+                    this.scene.render();
+
+                    // Update FPS
+                    const currentTime = performance.now();
+                    fps = 1000 / (currentTime - lastTime);
+                    lastTime = currentTime;
+                    this.fpsElement.textContent = Math.round(fps);
+                });
+
+                // Handle window resize
+                window.addEventListener('resize', () => {
+                    this.engine.resize();
+                });
+
+                this.updateStatus('Initialized');
+                console.log("Viewer initialized");
+                return this;
+            }
+
+            async loadPLY(url) {
+                try {
+                    this.showLoading();
+                    this.updateStatus('Loading...');
+
+                    console.log(`Loading PLY from: ${url}`);
+
+                    // Remove old mesh if exists
+                    if (this.splatMesh) {
+                        this.splatMesh.dispose();
+                    }
+
+                    // Load using Babylon.js GaussianSplattingMesh
+                    this.splatMesh = await BABYLON.GaussianSplattingMesh.CreateFromUrlAsync(
+                        "splatMesh",
+                        url,
+                        this.scene
+                    );
+
+                    console.log("Splat loaded successfully!");
+
+                    // Update info
+                    const vertexCount = this.splatMesh.getTotalVertices();
+                    this.verticesElement.textContent = vertexCount.toLocaleString();
+                    this.updateStatus('Loaded');
+
+                    // Adjust camera
+                    this.adjustCamera();
+
+                    this.hideLoading();
+                    return true;
+
+                } catch (error) {
+                    console.error("Failed to load PLY:", error);
+                    this.updateStatus('Error');
+                    this.hideLoading();
+                    alert(`Failed to load PLY file:\n${error.message}`);
+                    return false;
+                }
+            }
+
+            async loadPLYFromFile(file) {
+                if (!file.name.endsWith('.ply')) {
+                    alert('Please select a .ply file');
+                    return false;
+                }
+
+                try {
+                    this.showLoading();
+                    this.updateStatus(`Loading ${file.name}...`);
+
+                    const arrayBuffer = await file.arrayBuffer();
+                    const blob = new Blob([arrayBuffer], { type: 'application/octet-stream' });
+                    const url = URL.createObjectURL(blob);
+
+                    const success = await this.loadPLY(url);
+
+                    URL.revokeObjectURL(url);
+                    return success;
+
+                } catch (error) {
+                    console.error("Failed to load file:", error);
+                    this.updateStatus('Error');
+                    this.hideLoading();
+                    return false;
+                }
+            }
+
+            adjustCamera() {
+                if (!this.splatMesh) return;
+
+                const boundingInfo = this.splatMesh.getBoundingInfo();
+                const center = boundingInfo.boundingBox.centerWorld;
+                const size = boundingInfo.boundingBox.extendSizeWorld;
+
+                this.camera.target = center;
+                const maxDim = Math.max(size.x, size.y, size.z);
+                this.camera.radius = maxDim * 3;
+
+                console.log("Camera adjusted to splat");
+            }
+
+            setupDragAndDrop() {
+                this.canvas.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    this.canvas.classList.add('dragover');
+                });
+
+                this.canvas.addEventListener('dragleave', (e) => {
+                    e.preventDefault();
+                    this.canvas.classList.remove('dragover');
+                });
+
+                this.canvas.addEventListener('drop', async (e) => {
+                    e.preventDefault();
+                    this.canvas.classList.remove('dragover');
+
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0) {
+                        await this.loadPLYFromFile(files[0]);
+                    }
+                });
+            }
+
+            setBackgroundColor(color) {
+                const rgb = this.hexToRgb(color);
+                this.scene.clearColor = new BABYLON.Color3(
+                    rgb.r / 255,
+                    rgb.g / 255,
+                    rgb.b / 255
+                );
+            }
+
+            hexToRgb(hex) {
+                const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+                return result ? {
+                    r: parseInt(result[1], 16),
+                    g: parseInt(result[2], 16),
+                    b: parseInt(result[3], 16)
+                } : { r: 0, g: 0, b: 0 };
+            }
+
+            showLoading() {
+                document.getElementById('loadingUI').style.display = 'block';
+            }
+
+            hideLoading() {
+                document.getElementById('loadingUI').style.display = 'none';
+            }
+
+            updateStatus(status) {
+                this.statusElement.textContent = status;
+            }
+        }
+
+        // Initialize viewer
+        let viewer;
+
+        async function init() {
+            viewer = new SimpleSplatViewer('renderCanvas');
+            await viewer.initialize();
+            viewer.setupDragAndDrop();
+
+            // Setup UI controls
+            document.getElementById('loadBtn').addEventListener('click', async () => {
+                const url = document.getElementById('plyUrl').value.trim();
+                if (url) {
+                    await viewer.loadPLY(url);
+                } else {
+                    alert('Please enter a PLY file URL');
+                }
+            });
+
+            document.getElementById('fileInput').addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    await viewer.loadPLYFromFile(file);
+                }
+            });
+
+            document.getElementById('bgColor').addEventListener('change', (e) => {
+                viewer.setBackgroundColor(e.target.value);
+            });
+
+            // Sample URLs
+            document.getElementById('sample1').addEventListener('click', async () => {
+                // Replace with actual sample URL
+                const url = 'https://huggingface.co/datasets/dylanebert/3dgs/resolve/main/bonsai/point_cloud/iteration_7000/point_cloud.ply';
+                document.getElementById('plyUrl').value = url;
+                await viewer.loadPLY(url);
+            });
+
+            document.getElementById('sample2').addEventListener('click', async () => {
+                const url = '../assets/train.ply';
+                document.getElementById('plyUrl').value = url;
+                await viewer.loadPLY(url);
+            });
+
+            console.log("UI initialized");
+        }
+
+        // Start when page loads
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
