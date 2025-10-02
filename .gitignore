@@ -1,1 +1,28 @@
+# Python virtual environment (legacy)
 /.venv
+
+# Dependencies
+node_modules/
+package-lock.json
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build outputs
+dist/
+build/
+
+# Environment
+.env
+.env.local
